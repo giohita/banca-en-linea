@@ -4,8 +4,8 @@ FROM golang:1.21-alpine AS builder
 # Set working directory
 WORKDIR /app
 
-# Install git (needed for some Go modules)
-RUN apk add --no-cache git
+# Install build dependencies (needed for CGO and TigerBeetle)
+RUN apk add --no-cache git gcc musl-dev
 
 # Copy go mod files
 COPY go.mod ./
@@ -16,14 +16,17 @@ RUN go mod download
 # Copy source code
 COPY . .
 
+# Tidy dependencies and generate go.sum
+RUN go mod tidy
+
 # Build the application
-RUN CGO_ENABLED=0 GOOS=linux go build -a -installsuffix cgo -o main .
+RUN CGO_ENABLED=1 GOOS=linux go build -a -o main .
 
 # Final stage
 FROM alpine:latest
 
-# Install ca-certificates for HTTPS requests
-RUN apk --no-cache add ca-certificates
+# Install ca-certificates and libc for CGO binaries
+RUN apk --no-cache add ca-certificates libc6-compat
 
 # Create non-root user
 RUN addgroup -g 1001 -S appgroup && \

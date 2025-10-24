@@ -1,4 +1,24 @@
 services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: banca-postgres
+    ports:
+      - "5432:5432"
+    environment:
+      - POSTGRES_DB=banca_db
+      - POSTGRES_USER=banca_user
+      - POSTGRES_PASSWORD=banca_password
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./scripts/init-postgres.sql:/docker-entrypoint-initdb.d/init.sql
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U banca_user -d banca_db"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
   backend:
     build:
       context: ./packages/backend
@@ -8,6 +28,15 @@ services:
       - "8081:8080"
     environment:
       - ENV=production
+      - TIGERBEETLE_URL=tigerbeetle:3002
+      - POSTGRES_HOST=postgres
+      - POSTGRES_PORT=5432
+      - POSTGRES_DB=banca_db
+      - POSTGRES_USER=banca_user
+      - POSTGRES_PASSWORD=banca_password
+    depends_on:
+      - tigerbeetle
+      - postgres
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:8080/health"]
@@ -25,6 +54,7 @@ services:
       - "8082:80"
     depends_on:
       - backend
+      - tigerbeetle
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:80/health"]
@@ -32,6 +62,31 @@ services:
       timeout: 10s
       retries: 3
       start_period: 40s
+
+  tigerbeetle:
+    build:
+      context: .
+      dockerfile: ./packages/tigerbeetle/Dockerfile
+    container_name: banca-tigerbeetle
+    ports:
+      - "3002:3002"
+    volumes:
+      - tigerbeetle_data:/data
+    security_opt:
+      - "seccomp=unconfined"
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "nc", "-z", "localhost", "3002"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+volumes:
+  tigerbeetle_data:
+    driver: local
+  postgres_data:
+    driver: local
 
 networks:
   default:
