@@ -1,0 +1,88 @@
+name: CI/CD Pipeline
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  lint-and-build-frontend:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./packages/frontend
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+    
+    - name: Setup pnpm
+      uses: pnpm/action-setup@v2
+      with:
+        version: 8
+    
+    - name: Get pnpm store directory
+      shell: bash
+      run: |
+        echo "STORE_PATH=$(pnpm store path --silent)" >> $GITHUB_ENV
+    
+    - name: Setup pnpm cache
+      uses: actions/cache@v3
+      with:
+        path: ${{ env.STORE_PATH }}
+        key: ${{ runner.os }}-pnpm-store-${{ hashFiles('**/pnpm-lock.yaml') }}
+        restore-keys: |
+          ${{ runner.os }}-pnpm-store-
+    
+    - name: Install dependencies
+      run: pnpm install --frozen-lockfile
+    
+    - name: Run ESLint
+      run: pnpm run lint
+    
+    - name: Build frontend
+      run: pnpm run build
+
+  lint-and-build-backend:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./packages/backend
+    
+    steps:
+    - uses: actions/checkout@v4
+    
+    - name: Setup Go
+      uses: actions/setup-go@v4
+      with:
+        go-version: '1.21'
+    
+    - name: Cache Go modules
+      uses: actions/cache@v3
+      with:
+        path: ~/go/pkg/mod
+        key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
+        restore-keys: |
+          ${{ runner.os }}-go-
+    
+    - name: Install dependencies
+      run: go mod download
+    
+    - name: Run go vet
+      run: go vet ./...
+    
+    - name: Run go fmt check
+      run: |
+        if [ "$(gofmt -s -l . | wc -l)" -gt 0 ]; then
+          echo "Go code is not formatted properly:"
+          gofmt -s -l .
+          exit 1
+        fi
+    
+    - name: Build backend
+      run: go build -v ./...
