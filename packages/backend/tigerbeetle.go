@@ -4,14 +4,38 @@ package main
 
 import (
 	"fmt"
+	"log"
 	"net"
 	"os"
 	"strconv"
 
-	"github.com/tigerbeetle/tigerbeetle-go"
+	tigerbeetle_go "github.com/tigerbeetle/tigerbeetle-go"
 	"github.com/tigerbeetle/tigerbeetle-go/pkg/types"
 	"go.uber.org/zap"
 )
+
+// Variables globales
+var (
+	tb     tigerbeetle_go.Client
+	logger *zap.Logger
+)
+
+// init inicializa el logger
+func init() {
+	var err error
+	logger, err = zap.NewDevelopment()
+	if err != nil {
+		log.Fatalf("Error inicializando logger: %v", err)
+	}
+}
+
+// getEnv obtiene una variable de entorno con un valor por defecto
+func getEnv(key, defaultValue string) string {
+	if value := os.Getenv(key); value != "" {
+		return value
+	}
+	return defaultValue
+}
 
 // initTigerBeetle inicializa la conexión a TigerBeetle
 func initTigerBeetle() {
@@ -46,7 +70,7 @@ func initTigerBeetle() {
 
 	// Crear cliente TigerBeetle con configuración simplificada
 	var err error
-	client, err := tigerbeetle.NewClient(clusterID, []string{tigerBeetleAddress})
+	client, err := tigerbeetle_go.NewClient(clusterID, []string{tigerBeetleAddress})
 	tb = client
 	if err != nil {
 		logger.Error("❌ Error conectando a TigerBeetle",
@@ -69,8 +93,8 @@ func getAccountBalance(accountID uint64) (int64, error) {
 		return 0, fmt.Errorf("TigerBeetle not available")
 	}
 
-	// Cast tb a tigerbeetle.Client para acceder a métodos específicos
-	client, ok := tb.(tigerbeetle.Client)
+	// Cast tb a tigerbeetle_go.Client para acceder a métodos específicos
+	client, ok := tb.(tigerbeetle_go.Client)
 	if !ok {
 		logger.Error("Error: tb no es un cliente TigerBeetle válido")
 		return 0, fmt.Errorf("invalid TigerBeetle client")
