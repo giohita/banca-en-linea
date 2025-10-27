@@ -1,31 +1,31 @@
 package main
 
 import (
-    "database/sql"
-    "encoding/json"
-    "fmt"
-    "log"
-    "net/http"
-    "os"
-    "time"
+	"database/sql"
+	"encoding/json"
+	"fmt"
+	"log"
+	"net/http"
+	"os"
+	"time"
 
-    "github.com/google/uuid"
-    "github.com/gorilla/mux"
-    _ "github.com/lib/pq"
-    "go.uber.org/zap"
-    "go.uber.org/zap/zapcore"
+	"github.com/google/uuid"
+	"github.com/gorilla/mux"
+	_ "github.com/lib/pq"
+	"go.uber.org/zap"
+	"go.uber.org/zap/zapcore"
 )
 
 // Estructuras de datos
 type User struct {
-	ID           uuid.UUID `json:"id"`
-	Email        string    `json:"email"`
-	FirstName    string    `json:"first_name"`
-	LastName     string    `json:"last_name"`
-	Phone        string    `json:"phone"`
-	CreatedAt    time.Time `json:"created_at"`
-	IsActive     bool      `json:"is_active"`
-	EmailVerified bool     `json:"email_verified"`
+	ID            uuid.UUID `json:"id"`
+	Email         string    `json:"email"`
+	FirstName     string    `json:"first_name"`
+	LastName      string    `json:"last_name"`
+	Phone         string    `json:"phone"`
+	CreatedAt     time.Time `json:"created_at"`
+	IsActive      bool      `json:"is_active"`
+	EmailVerified bool      `json:"email_verified"`
 }
 
 type BankAccount struct {
@@ -41,16 +41,16 @@ type BankAccount struct {
 }
 
 type Transaction struct {
-	ID                     uuid.UUID `json:"id"`
-	TigerBeetleTransferID  uint64    `json:"tigerbeetle_transfer_id"`
-	FromAccountID          *uuid.UUID `json:"from_account_id"`
-	ToAccountID            *uuid.UUID `json:"to_account_id"`
-	Amount                 int64     `json:"amount"`
-	Currency               string    `json:"currency"`
-	Description            string    `json:"description"`
-	TransactionType        string    `json:"transaction_type"`
-	Status                 string    `json:"status"`
-	CreatedAt              time.Time `json:"created_at"`
+	ID                    uuid.UUID  `json:"id"`
+	TigerBeetleTransferID uint64     `json:"tigerbeetle_transfer_id"`
+	FromAccountID         *uuid.UUID `json:"from_account_id"`
+	ToAccountID           *uuid.UUID `json:"to_account_id"`
+	Amount                int64      `json:"amount"`
+	Currency              string     `json:"currency"`
+	Description           string     `json:"description"`
+	TransactionType       string     `json:"transaction_type"`
+	Status                string     `json:"status"`
+	CreatedAt             time.Time  `json:"created_at"`
 }
 
 // Interfaz para TigerBeetle que permite usar build tags
@@ -76,7 +76,7 @@ func initLogger() {
 	config.EncoderConfig.MessageKey = "message"
 	config.EncoderConfig.LevelKey = "level"
 	config.EncoderConfig.CallerKey = "caller"
-	
+
 	var err error
 	logger, err = config.Build()
 	if err != nil {
@@ -86,40 +86,40 @@ func initLogger() {
 
 // Configuración de la base de datos
 func initDatabase() {
-    var err error
-	
+	var err error
+
 	// Configuración de PostgreSQL
 	host := getEnv("POSTGRES_HOST", "localhost")
 	port := getEnv("POSTGRES_PORT", "5432")
 	user := getEnv("POSTGRES_USER", "postgres")
 	password := getEnv("POSTGRES_PASSWORD", "postgres")
 	dbname := getEnv("POSTGRES_DB", "banca_db")
-	
+
 	logger.Info("Iniciando conexión a PostgreSQL",
 		zap.String("host", host),
 		zap.String("port", port),
 		zap.String("user", user),
 		zap.String("database", dbname),
 	)
-	
+
 	// Construir string de conexión
 	psqlInfo := fmt.Sprintf("host=%s port=%s user=%s password=%s dbname=%s sslmode=disable",
 		host, port, user, password, dbname)
-	
+
 	// Conectar a PostgreSQL
 	db, err = sql.Open("postgres", psqlInfo)
 	if err != nil {
 		logger.Fatal("Error conectando a PostgreSQL", zap.Error(err))
 	}
-	
+
 	// Verificar conexión
 	err = db.Ping()
 	if err != nil {
 		logger.Fatal("Error verificando conexión a PostgreSQL", zap.Error(err))
 	}
-	
+
 	logger.Info("✅ Conectado exitosamente a PostgreSQL")
-	
+
 	// Inicializar TigerBeetle (implementación específica por build tag)
 	initTigerBeetle()
 
@@ -138,7 +138,7 @@ func getEnv(key, defaultValue string) string {
 // Health check endpoint
 func healthHandler(w http.ResponseWriter, r *http.Request) {
 	logger.Info("Health check solicitado", zap.String("remote_addr", r.RemoteAddr))
-	
+
 	// Verificar conexión a PostgreSQL
 	dbStatus := "connected"
 	if err := db.Ping(); err != nil {
@@ -147,24 +147,24 @@ func healthHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Database connection failed", http.StatusServiceUnavailable)
 		return
 	}
-	
+
 	// Verificar conexión a TigerBeetle
 	tbStatus := "not_initialized"
 	if tb != nil {
 		tbStatus = "connected"
 	}
-	
+
 	response := map[string]string{
 		"status":      "OK",
 		"database":    dbStatus,
 		"tigerbeetle": tbStatus,
 	}
-	
+
 	logger.Info("Health check completado",
 		zap.String("database_status", dbStatus),
 		zap.String("tigerbeetle_status", tbStatus),
 	)
-	
+
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(response)
@@ -173,20 +173,20 @@ func healthHandler(w http.ResponseWriter, r *http.Request) {
 // Root endpoint
 func rootHandler(w http.ResponseWriter, r *http.Request) {
 	logger.Info("Root endpoint accedido", zap.String("remote_addr", r.RemoteAddr))
-	
+
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(http.StatusOK)
 	json.NewEncoder(w).Encode(map[string]string{
 		"message": "¡Banca en Línea API!",
 		"version": "1.0.0",
-		"status": "running",
+		"status":  "running",
 	})
 }
 
 // Obtener usuarios
 func getUsersHandler(w http.ResponseWriter, r *http.Request) {
 	logger.Info("Solicitando lista de usuarios", zap.String("remote_addr", r.RemoteAddr))
-	
+
 	rows, err := db.Query(`
 		SELECT id, email, first_name, last_name, phone, created_at, is_active, email_verified 
 		FROM users 
@@ -199,11 +199,11 @@ func getUsersHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	defer rows.Close()
-	
+
 	var users []User
 	for rows.Next() {
 		var user User
-		err := rows.Scan(&user.ID, &user.Email, &user.FirstName, &user.LastName, 
+		err := rows.Scan(&user.ID, &user.Email, &user.FirstName, &user.LastName,
 			&user.Phone, &user.CreatedAt, &user.IsActive, &user.EmailVerified)
 		if err != nil {
 			logger.Error("Error escaneando usuario", zap.Error(err))
@@ -212,9 +212,9 @@ func getUsersHandler(w http.ResponseWriter, r *http.Request) {
 		}
 		users = append(users, user)
 	}
-	
+
 	logger.Info("Usuarios obtenidos exitosamente", zap.Int("count", len(users)))
-	
+
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(users)
 }
@@ -228,12 +228,12 @@ func getUserAccountsHandler(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Invalid user ID", http.StatusBadRequest)
 		return
 	}
-	
-	logger.Info("Solicitando cuentas de usuario", 
+
+	logger.Info("Solicitando cuentas de usuario",
 		zap.String("user_id", userID.String()),
 		zap.String("remote_addr", r.RemoteAddr),
 	)
-	
+
 	rows, err := db.Query(`
 		SELECT id, user_id, account_number, account_type, tigerbeetle_account_id, 
 			   currency, created_at, is_active 
@@ -247,11 +247,11 @@ func getUserAccountsHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	defer rows.Close()
-	
+
 	var accounts []BankAccount
 	for rows.Next() {
 		var account BankAccount
-		err := rows.Scan(&account.ID, &account.UserID, &account.AccountNumber, 
+		err := rows.Scan(&account.ID, &account.UserID, &account.AccountNumber,
 			&account.AccountType, &account.TigerBeetleAccountID, &account.Currency,
 			&account.CreatedAt, &account.IsActive)
 		if err != nil {
@@ -259,36 +259,34 @@ func getUserAccountsHandler(w http.ResponseWriter, r *http.Request) {
 			http.Error(w, "Error scanning account", http.StatusInternalServerError)
 			return
 		}
-		
+
 		// Obtener balance desde TigerBeetle
 		balance, err := getAccountBalance(account.TigerBeetleAccountID)
 		if err != nil {
-			logger.Warn("Error obteniendo balance de TigerBeetle", 
+			logger.Warn("Error obteniendo balance de TigerBeetle",
 				zap.Uint64("tigerbeetle_account_id", account.TigerBeetleAccountID),
 				zap.Error(err),
 			)
 			balance = 0
 		}
 		account.Balance = float64(balance)
-		
+
 		accounts = append(accounts, account)
 	}
-	
-	logger.Info("Cuentas obtenidas exitosamente", 
+
+	logger.Info("Cuentas obtenidas exitosamente",
 		zap.String("user_id", userID.String()),
 		zap.Int("count", len(accounts)),
 	)
-	
+
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(accounts)
 }
 
-
-
 // Configurar rutas
 func setupRoutes() *mux.Router {
 	r := mux.NewRouter()
-	
+
 	// Middleware CORS y Logging
 	r.Use(func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
@@ -299,27 +297,27 @@ func setupRoutes() *mux.Router {
 				zap.String("remote_addr", r.RemoteAddr),
 				zap.String("user_agent", r.UserAgent()),
 			)
-			
+
 			// Headers CORS
 			w.Header().Set("Access-Control-Allow-Origin", "*")
 			w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
 			w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
-			
+
 			if r.Method == "OPTIONS" {
 				w.WriteHeader(http.StatusOK)
 				return
 			}
-			
+
 			next.ServeHTTP(w, r)
 		})
 	})
-	
+
 	// Rutas
 	r.HandleFunc("/", rootHandler).Methods("GET")
 	r.HandleFunc("/health", healthHandler).Methods("GET")
 	r.HandleFunc("/api/users", getUsersHandler).Methods("GET")
 	r.HandleFunc("/api/users/{userId}/accounts", getUserAccountsHandler).Methods("GET")
-	
+
 	return r
 }
 
@@ -327,9 +325,9 @@ func main() {
 	// Inicializar logger
 	initLogger()
 	defer logger.Sync()
-	
+
 	logger.Info("🚀 Iniciando aplicación bancaria")
-	
+
 	// Inicializar conexiones a bases de datos
 	initDatabase()
 	defer db.Close()
@@ -338,16 +336,16 @@ func main() {
 			tb.Close()
 		}
 	}()
-	
+
 	// Configurar rutas
 	router := setupRoutes()
-	
+
 	// Iniciar servidor
 	port := getEnv("PORT", "8080")
 	logger.Info("🚀 Servidor iniciado",
 		zap.String("port", port),
 		zap.String("status", "listening"),
 	)
-	
+
 	logger.Fatal("Error en servidor HTTP", zap.Error(http.ListenAndServe(":"+port, router)))
 }

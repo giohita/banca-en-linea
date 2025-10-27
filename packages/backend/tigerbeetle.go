@@ -49,7 +49,7 @@ func initTigerBeetle() {
 	client, err := tigerbeetle.NewClient(clusterID, []string{tigerBeetleAddress})
 	tb = client
 	if err != nil {
-		logger.Error("❌ Error conectando a TigerBeetle", 
+		logger.Error("❌ Error conectando a TigerBeetle",
 			zap.String("address", tigerBeetleAddress),
 			zap.Error(err),
 		)
@@ -63,67 +63,67 @@ func initTigerBeetle() {
 // getAccountBalance obtiene el balance de una cuenta desde TigerBeetle
 func getAccountBalance(accountID uint64) (int64, error) {
 	logger.Debug("Consultando balance en TigerBeetle", zap.Uint64("account_id", accountID))
-	
+
 	if tb == nil {
 		logger.Warn("TigerBeetle no está disponible")
 		return 0, fmt.Errorf("TigerBeetle not available")
 	}
-	
+
 	// Cast tb a tigerbeetle.Client para acceder a métodos específicos
 	client, ok := tb.(tigerbeetle.Client)
 	if !ok {
 		logger.Error("Error: tb no es un cliente TigerBeetle válido")
 		return 0, fmt.Errorf("invalid TigerBeetle client")
 	}
-	
+
 	accounts, err := client.LookupAccounts([]types.Uint128{types.ToUint128(accountID)})
 	if err != nil {
-		logger.Error("Error consultando cuenta en TigerBeetle", 
+		logger.Error("Error consultando cuenta en TigerBeetle",
 			zap.Uint64("account_id", accountID),
 			zap.Error(err),
 		)
 		return 0, err
 	}
-	
+
 	if len(accounts) == 0 {
 		logger.Warn("Cuenta no encontrada en TigerBeetle", zap.Uint64("account_id", accountID))
 		return 0, fmt.Errorf("account not found")
 	}
-	
+
 	// Convertir Uint128 a uint64 usando String() y strconv
 	creditsStr := accounts[0].CreditsPosted.String()
 	debitsStr := accounts[0].DebitsPosted.String()
-	
+
 	creditsPosted, err := strconv.ParseUint(creditsStr, 10, 64)
 	if err != nil {
-		logger.Error("Error parseando créditos", 
+		logger.Error("Error parseando créditos",
 			zap.Uint64("account_id", accountID),
 			zap.String("credits_str", creditsStr),
 			zap.Error(err),
 		)
 		return 0, fmt.Errorf("error parsing credits: %v", err)
 	}
-	
+
 	debitsPosted, err := strconv.ParseUint(debitsStr, 10, 64)
 	if err != nil {
-		logger.Error("Error parseando débitos", 
+		logger.Error("Error parseando débitos",
 			zap.Uint64("account_id", accountID),
 			zap.String("debits_str", debitsStr),
 			zap.Error(err),
 		)
 		return 0, fmt.Errorf("error parsing debits: %v", err)
 	}
-	
+
 	// Calcular balance
 	balance := int64(creditsPosted) - int64(debitsPosted)
-	
-	logger.Debug("Balance calculado exitosamente", 
+
+	logger.Debug("Balance calculado exitosamente",
 		zap.Uint64("account_id", accountID),
 		zap.Int64("balance", balance),
 		zap.Uint64("credits", creditsPosted),
 		zap.Uint64("debits", debitsPosted),
 	)
-	
+
 	return balance, nil
 }
 
