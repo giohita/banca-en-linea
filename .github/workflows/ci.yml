@@ -73,6 +73,9 @@ jobs:
     - name: Install dependencies
       run: go mod download
     
+    - name: Verify dependencies
+      run: go mod tidy && go mod verify
+    
     - name: Run go vet
       run: go vet ./...
     
