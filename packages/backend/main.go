@@ -5,6 +5,7 @@ import (
     "encoding/json"
     "fmt"
     "log"
+    "net"
     "net/http"
     "os"
     "strconv"
@@ -129,21 +130,52 @@ func initDatabase() {
 	)
 	
     // Resolver IP IPv4 para evitar "Invalid client cluster address" cuando se usa hostname
-    // Dirección final: usar override si existe, de lo contrario hostname directo.
-    tigerBeetleAddress := tigerBeetleHost + ":" + tigerBeetlePort
+    var tigerBeetleAddress string
     if tigerBeetleAddrEnv != "" {
         tigerBeetleAddress = tigerBeetleAddrEnv
         logger.Info("Usando TIGERBEETLE_ADDR explícito", zap.String("address", tigerBeetleAddress))
+    } else {
+        // Resolver hostname a IPv4 para evitar problemas con el cliente TigerBeetle
+        ips, err := net.LookupIP(tigerBeetleHost)
+        if err != nil {
+            logger.Error("Error resolviendo hostname TigerBeetle", zap.Error(err), zap.String("host", tigerBeetleHost))
+            tigerBeetleAddress = tigerBeetleHost + ":" + tigerBeetlePort // fallback al hostname
+        } else {
+            // Buscar la primera dirección IPv4
+            var ipv4 net.IP
+            for _, ip := range ips {
+                if ip.To4() != nil {
+                    ipv4 = ip
+                    break
+                }
+            }
+            if ipv4 != nil {
+                tigerBeetleAddress = ipv4.String() + ":" + tigerBeetlePort
+                logger.Info("Resuelto hostname a IPv4", 
+                    zap.String("hostname", tigerBeetleHost),
+                    zap.String("ipv4", ipv4.String()),
+                    zap.String("address", tigerBeetleAddress))
+            } else {
+                logger.Warn("No se encontró IPv4 para hostname, usando hostname directo", zap.String("host", tigerBeetleHost))
+                tigerBeetleAddress = tigerBeetleHost + ":" + tigerBeetlePort
+            }
+        }
     }
 	clusterID := types.ToUint128(0)
 	
+    // Configurar variables de entorno para TigerBeetle en Docker
+    os.Setenv("TIGERBEETLE_IO_MODE", "blocking")
+    os.Setenv("TIGERBEETLE_DISABLE_IO_URING", "1")
+    
     logger.Info("Intentando crear cliente TigerBeetle",
         zap.String("cluster_id", "0"),
         zap.String("address", tigerBeetleAddress),
+        zap.String("io_mode", "blocking"),
+        zap.String("disable_io_uring", "1"),
     )
 	
 	// Crear cliente TigerBeetle con configuración simplificada
-    tb, err = tigerbeetle.NewClient(clusterID, []string{tigerBeetleAddress}, 1)
+    tb, err = tigerbeetle.NewClient(clusterID, []string{tigerBeetleAddress})
     if err != nil {
         logger.Error("Error conectando a TigerBeetle", 
             zap.Error(err),

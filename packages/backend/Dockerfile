@@ -1,11 +1,11 @@
 # Build stage
-FROM golang:1.21-alpine AS builder
+FROM golang:1.21-bookworm AS builder
 
 # Set working directory
 WORKDIR /app
 
 # Install build dependencies (needed for CGO and TigerBeetle)
-RUN apk add --no-cache git gcc musl-dev
+RUN apt-get update && apt-get install -y git gcc libc6-dev && rm -rf /var/lib/apt/lists/*
 
 # Copy go mod files
 COPY go.mod ./
@@ -23,28 +23,30 @@ RUN go mod tidy
 RUN CGO_ENABLED=1 GOOS=linux go build -a -o main .
 
 # Final stage
-FROM alpine:latest
+FROM debian:bookworm-slim
 
-# Install ca-certificates and libc for CGO binaries
-RUN apk --no-cache add ca-certificates libc6-compat
+# Install ca-certificates for HTTPS requests and basic tools
+RUN apt-get update && \
+    apt-get install -y ca-certificates && \
+    rm -rf /var/lib/apt/lists/*
 
-# Create non-root user
-RUN addgroup -g 1001 -S appgroup && \
-    adduser -u 1001 -S appuser -G appgroup
+# Create a non-root user
+RUN groupadd -g 1001 appuser && \
+    useradd -r -u 1001 -g appuser appuser
 
-WORKDIR /root/
+WORKDIR /app
 
-# Copy the binary from builder stage
+# Copy the binary from the builder stage
 COPY --from=builder /app/main .
 
-# Change ownership to non-root user
-RUN chown appuser:appgroup main
+# Change ownership to the non-root user
+RUN chown appuser:appuser /app/main
 
-# Switch to non-root user
+# Switch to the non-root user
 USER appuser
 
-# Expose port
+# Expose the port the app runs on
 EXPOSE 8080
 
-# Command to run
+# Run the binary
 CMD ["./main"]

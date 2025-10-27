@@ -35,6 +35,10 @@ services:
       - POSTGRES_DB=banca_db
       - POSTGRES_USER=banca_user
       - POSTGRES_PASSWORD=banca_password
+      - TIGERBEETLE_IO_MODE=blocking
+      - TIGERBEETLE_DISABLE_IO_URING=1
+    security_opt:
+      - "seccomp=unconfined"
     depends_on:
       - tigerbeetle
       - postgres
