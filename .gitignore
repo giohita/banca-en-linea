@@ -1,3 +1,224 @@
+# ===============================================
+# ARCHIVOS DE ENTORNO Y CONFIGURACIÓN SENSIBLE
+# ===============================================
+# Archivos de variables de entorno (contienen información sensible)
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# Archivos de configuración con credenciales
+config.json
+secrets.json
+
+# ===============================================
+# DEPENDENCIAS Y MÓDULOS
+# ===============================================
+# Node.js
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# Go modules
+vendor/
+
+# ===============================================
+# ARCHIVOS DE BUILD Y DISTRIBUCIÓN
+# ===============================================
+# Frontend builds
+dist/
+build/
+.vite/
+.next/
+.nuxt/
+.output/
+
+# Backend builds
+packages/backend/*.exe
+packages/backend/backend
+packages/backend/main
+
+# ===============================================
+# ARCHIVOS DE DESARROLLO
+# ===============================================
+# Logs
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+# Runtime data
+pids/
+*.pid
+*.seed
+*.pid.lock
+
+# Coverage directory used by tools like istanbul
+coverage/
+*.lcov
+
+# nyc test coverage
+.nyc_output/
+
+# ===============================================
+# ARCHIVOS DEL EDITOR E IDE
+# ===============================================
+# Visual Studio Code
+.vscode/
+!.vscode/extensions.json
+
+# IntelliJ IDEA
+.idea/
+*.iml
+*.ipr
+*.iws
+
+# Sublime Text
+*.sublime-project
+*.sublime-workspace
+
+# Vim
+*.swp
+*.swo
+*~
+
+# Emacs
+*~
+\#*\#
+/.emacs.desktop
+/.emacs.desktop.lock
+*.elc
+auto-save-list
+tramp
+.\#*
+
+# ===============================================
+# ARCHIVOS DEL SISTEMA OPERATIVO
+# ===============================================
+# macOS
+.DS_Store
+.AppleDouble
+.LSOverride
+Icon
+._*
+.DocumentRevisions-V100
+.fseventsd
+.Spotlight-V100
+.TemporaryItems
+.Trashes
+.VolumeIcon.icns
+.com.apple.timemachine.donotpresent
+
+# Windows
+Thumbs.db
+Thumbs.db:encryptable
+ehthumbs.db
+ehthumbs_vista.db
+*.stackdump
+[Dd]esktop.ini
+$RECYCLE.BIN/
+*.cab
+*.msi
+*.msix
+*.msm
+*.msp
+*.lnk
+
+# Linux
+*~
+.fuse_hidden*
+.directory
+.Trash-*
+.nfs*
+
+# ===============================================
+# ARCHIVOS DE BASE DE DATOS
+# ===============================================
+# SQLite
+*.sqlite
+*.sqlite3
+*.db
+
+# PostgreSQL dumps
+*.sql
+*.dump
+
+# ===============================================
+# ARCHIVOS DE TIGERBEETLE
+# ===============================================
 tigerbeetle.exe
 tigerbeetle-data/
-packages/backend/*.exe
+*.tigerbeetle
+
+# ===============================================
+# ARCHIVOS DE DOCKER
+# ===============================================
+# Docker volumes data
+docker-data/
+postgres-data/
+
+# ===============================================
+# ARCHIVOS DE CERTIFICADOS Y CLAVES
+# ===============================================
+# SSL certificates
+*.pem
+*.key
+*.crt
+*.csr
+*.p12
+*.pfx
+
+# SSH keys
+id_rsa
+id_rsa.pub
+id_ed25519
+id_ed25519.pub
+
+# ===============================================
+# ARCHIVOS TEMPORALES Y CACHE
+# ===============================================
+# Temporary files
+tmp/
+temp/
+*.tmp
+*.temp
+
+# Cache directories
+.cache/
+.parcel-cache/
+.eslintcache
+
+# ===============================================
+# ARCHIVOS DE TESTING
+# ===============================================
+# Test results
+test-results/
+coverage/
+.nyc_output/
+
+# ===============================================
+# ARCHIVOS DE BACKUP
+# ===============================================
+*.bak
+*.backup
+*.old
+*.orig
+
+# ===============================================
+# ARCHIVOS ESPECÍFICOS DEL PROYECTO
+# ===============================================
+# Archivos de datos de prueba con información sensible
+datos-prueba-*.json
+test-data/
+sample-data/
+
+# Archivos de configuración local
+local.config.js
+local.config.json

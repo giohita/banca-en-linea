@@ -1,5 +1,5 @@
 # Build stage
-FROM golang:1.21-bookworm AS builder
+FROM golang:1.24-bookworm AS builder
 
 # Set working directory
 WORKDIR /app
@@ -20,7 +20,7 @@ COPY . .
 RUN go mod tidy
 
 # Build the application
-RUN CGO_ENABLED=1 GOOS=linux go build -a -o main .
+RUN CGO_ENABLED=1 GOOS=linux go build -a -tags docker -o main .
 
 # Final stage
 FROM debian:bookworm-slim
@@ -39,8 +39,11 @@ WORKDIR /app
 # Copy the binary from the builder stage
 COPY --from=builder /app/main .
 
+# Copy migrations directory
+COPY --from=builder /app/migrations ./migrations
+
 # Change ownership to the non-root user
-RUN chown appuser:appuser /app/main
+RUN chown -R appuser:appuser /app
 
 # Switch to the non-root user
 USER appuser

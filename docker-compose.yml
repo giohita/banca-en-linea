@@ -40,7 +40,6 @@ services:
     security_opt:
       - "seccomp=unconfined"
     depends_on:
-      - tigerbeetle
       - postgres
     restart: unless-stopped
     healthcheck:
@@ -59,7 +58,6 @@ services:
       - "8082:80"
     depends_on:
       - backend
-      - tigerbeetle
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:80/health"]
