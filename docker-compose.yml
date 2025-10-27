@@ -28,7 +28,8 @@ services:
       - "8081:8080"
     environment:
       - ENV=production
-      - TIGERBEETLE_URL=tigerbeetle:3002
+      - TIGERBEETLE_HOST=tigerbeetle
+      - TIGERBEETLE_PORT=3002
       - POSTGRES_HOST=postgres
       - POSTGRES_PORT=5432
       - POSTGRES_DB=banca_db

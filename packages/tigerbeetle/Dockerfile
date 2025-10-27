@@ -38,11 +38,11 @@ ENV TIGERBEETLE_IO_MODE=blocking
 ENV TIGERBEETLE_DISABLE_IO_URING=1
 
 # Expose TigerBeetle port
-EXPOSE 3000
+EXPOSE 3002
 
 # Health check
 HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
-    CMD curl -f http://localhost:3000/health || exit 1
+    CMD nc -z localhost 3002 || exit 1
 
 # Comando por defecto
 CMD ["/usr/local/bin/init-db.sh"]
