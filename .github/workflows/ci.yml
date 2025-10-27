@@ -73,8 +73,11 @@ jobs:
     - name: Install dependencies
       run: go mod download
     
+    - name: Verify dependencies
+      run: go mod tidy && go mod verify
+    
     - name: Run go vet
-      run: go vet ./...
+      run: go vet -tags=ci ./...
     
     - name: Run go fmt check
       run: |
@@ -85,4 +88,4 @@ jobs:
         fi
     
     - name: Build backend
-      run: go build -v ./...
+      run: go build -tags=ci -v ./...
