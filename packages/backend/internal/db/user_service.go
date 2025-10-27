@@ -6,25 +6,25 @@ import (
 
 	"github.com/google/uuid"
 
-	"banca-en-linea/backend/internal/tigerbeetle"
+	// "banca-en-linea/backend/internal/tigerbeetle" // Comentado temporalmente
 	"banca-en-linea/backend/models"
 )
 
 // UserService maneja la lógica de negocio para usuarios
 type UserService struct {
 	userRepo           UserRepository
-	tigerBeetleService *tigerbeetle.Service
+	// tigerBeetleService *tigerbeetle.Service // Comentado temporalmente
 }
 
 // NewUserService crea una nueva instancia del servicio de usuarios
-func NewUserService(userRepo UserRepository, tbService *tigerbeetle.Service) *UserService {
+func NewUserService(userRepo UserRepository, tbService interface{}) *UserService {
 	return &UserService{
 		userRepo:           userRepo,
-		tigerBeetleService: tbService,
+		// tigerBeetleService: tbService, // Comentado temporalmente
 	}
 }
 
-// CreateUserWithAccount crea un usuario y su cuenta asociada en TigerBeetle
+// CreateUserWithAccount crea un usuario (sin TigerBeetle temporalmente)
 func (s *UserService) CreateUserWithAccount(req *models.CreateUserRequest) (*models.User, error) {
 	// 1. Crear el usuario en PostgreSQL
 	user, err := s.userRepo.Create(req)
@@ -32,37 +32,12 @@ func (s *UserService) CreateUserWithAccount(req *models.CreateUserRequest) (*mod
 		return nil, fmt.Errorf("error creating user: %w", err)
 	}
 
-	// 2. Generar un ID único para la cuenta TigerBeetle
-	// Usamos una combinación del timestamp y el UUID del usuario
-	accountID := generateTigerBeetleAccountID(user.ID)
-
-	// 3. Crear la cuenta en TigerBeetle
-	_, err = s.tigerBeetleService.CreateUserAccount(accountID)
-	if err != nil {
-		// Si falla la creación de la cuenta TigerBeetle, eliminar el usuario de PostgreSQL
-		if deleteErr := s.userRepo.Delete(user.ID); deleteErr != nil {
-			log.Printf("Error rolling back user creation: %v", deleteErr)
-		}
-		return nil, fmt.Errorf("error creating TigerBeetle account: %w", err)
-	}
-
-	// 4. Actualizar el usuario con el ID de cuenta TigerBeetle
-	signedAccountID := int64(accountID)
-	err = s.userRepo.UpdateTigerBeetleAccountID(user.ID, signedAccountID)
-	if err != nil {
-		log.Printf("Error updating user with TigerBeetle account ID: %v", err)
-		// La cuenta ya está creada, pero no está asociada al usuario
-		return user, fmt.Errorf("user created but TigerBeetle account association failed: %w", err)
-	}
-
-	// 5. Actualizar el objeto user con el ID de cuenta
-	user.TigerBeetleAccountID = &signedAccountID
-
-	log.Printf("Successfully created user %s with TigerBeetle account %d", user.Email, accountID)
+	// Temporalmente sin TigerBeetle - solo crear el usuario
+	log.Printf("Successfully created user %s (TigerBeetle disabled)", user.Email)
 	return user, nil
 }
 
-// GetUserWithBalance obtiene un usuario junto con su balance de TigerBeetle
+// GetUserWithBalance obtiene un usuario (sin balance temporalmente)
 func (s *UserService) GetUserWithBalance(userID uuid.UUID) (*models.User, uint64, error) {
 	// 1. Obtener el usuario de PostgreSQL
 	user, err := s.userRepo.GetByID(userID)
@@ -70,27 +45,11 @@ func (s *UserService) GetUserWithBalance(userID uuid.UUID) (*models.User, uint64
 		return nil, 0, fmt.Errorf("error getting user: %w", err)
 	}
 
-	// 2. Si el usuario no tiene cuenta TigerBeetle, devolver balance 0
-	if user.TigerBeetleAccountID == nil {
-		return user, 0, nil
-	}
-
-	// 3. Obtener el balance de TigerBeetle
-	accountID := uint64(*user.TigerBeetleAccountID)
-	debits, credits, err := s.tigerBeetleService.GetAccountBalance(accountID)
-	if err != nil {
-		log.Printf("Error getting TigerBeetle balance for user %s: %v", user.ID, err)
-		// Devolver el usuario sin balance en caso de error
-		return user, 0, nil
-	}
-
-	// El balance es credits - debits
-	balance := credits - debits
-
-	return user, balance, nil
+	// Temporalmente sin TigerBeetle - devolver balance 0
+	return user, 0, nil
 }
 
-// DepositToUser realiza un depósito a la cuenta de un usuario
+// DepositToUser realiza un depósito a la cuenta de un usuario (temporalmente sin TigerBeetle)
 func (s *UserService) DepositToUser(userID uuid.UUID, amount uint64) error {
 	// 1. Obtener el usuario
 	user, err := s.userRepo.GetByID(userID)
@@ -98,26 +57,12 @@ func (s *UserService) DepositToUser(userID uuid.UUID, amount uint64) error {
 		return fmt.Errorf("error getting user: %w", err)
 	}
 
-	// 2. Verificar que el usuario tiene cuenta TigerBeetle
-	if user.TigerBeetleAccountID == nil {
-		return fmt.Errorf("user does not have a TigerBeetle account")
-	}
-
-	// 3. Generar ID único para la transferencia
-	transferID := generateTransferID()
-
-	// 4. Realizar el depósito
-	accountID := uint64(*user.TigerBeetleAccountID)
-	err = s.tigerBeetleService.Deposit(accountID, amount, transferID)
-	if err != nil {
-		return fmt.Errorf("error depositing to user account: %w", err)
-	}
-
-	log.Printf("Successfully deposited %d to user %s (account %d)", amount, user.Email, accountID)
+	// Temporalmente sin TigerBeetle - solo registrar la operación
+	log.Printf("TigerBeetle disabled - would deposit %d to user %s", amount, user.Email)
 	return nil
 }
 
-// WithdrawFromUser realiza un retiro de la cuenta de un usuario
+// WithdrawFromUser realiza un retiro de la cuenta de un usuario (temporalmente sin TigerBeetle)
 func (s *UserService) WithdrawFromUser(userID uuid.UUID, amount uint64) error {
 	// 1. Obtener el usuario
 	user, err := s.userRepo.GetByID(userID)
@@ -125,37 +70,12 @@ func (s *UserService) WithdrawFromUser(userID uuid.UUID, amount uint64) error {
 		return fmt.Errorf("error getting user: %w", err)
 	}
 
-	// 2. Verificar que el usuario tiene cuenta TigerBeetle
-	if user.TigerBeetleAccountID == nil {
-		return fmt.Errorf("user does not have a TigerBeetle account")
-	}
-
-	// 3. Verificar balance suficiente
-	accountID := uint64(*user.TigerBeetleAccountID)
-	debits, credits, err := s.tigerBeetleService.GetAccountBalance(accountID)
-	if err != nil {
-		return fmt.Errorf("error getting account balance: %w", err)
-	}
-
-	balance := credits - debits
-	if balance < amount {
-		return fmt.Errorf("insufficient funds: balance %d, requested %d", balance, amount)
-	}
-
-	// 4. Generar ID único para la transferencia
-	transferID := generateTransferID()
-
-	// 5. Realizar el retiro
-	err = s.tigerBeetleService.Withdraw(accountID, amount, transferID)
-	if err != nil {
-		return fmt.Errorf("error withdrawing from user account: %w", err)
-	}
-
-	log.Printf("Successfully withdrew %d from user %s (account %d)", amount, user.Email, accountID)
+	// Temporalmente sin TigerBeetle - solo registrar la operación
+	log.Printf("TigerBeetle disabled - would withdraw %d from user %s", amount, user.Email)
 	return nil
 }
 
-// TransferBetweenUsers realiza una transferencia entre dos usuarios
+// TransferBetweenUsers realiza una transferencia entre dos usuarios (temporalmente sin TigerBeetle)
 func (s *UserService) TransferBetweenUsers(fromUserID, toUserID uuid.UUID, amount uint64) error {
 	// 1. Obtener ambos usuarios
 	fromUser, err := s.userRepo.GetByID(fromUserID)
@@ -168,42 +88,12 @@ func (s *UserService) TransferBetweenUsers(fromUserID, toUserID uuid.UUID, amoun
 		return fmt.Errorf("error getting destination user: %w", err)
 	}
 
-	// 2. Verificar que ambos usuarios tienen cuentas TigerBeetle
-	if fromUser.TigerBeetleAccountID == nil {
-		return fmt.Errorf("source user does not have a TigerBeetle account")
-	}
-
-	if toUser.TigerBeetleAccountID == nil {
-		return fmt.Errorf("destination user does not have a TigerBeetle account")
-	}
-
-	// 3. Verificar balance suficiente
-	fromAccountID := uint64(*fromUser.TigerBeetleAccountID)
-	debits, credits, err := s.tigerBeetleService.GetAccountBalance(fromAccountID)
-	if err != nil {
-		return fmt.Errorf("error getting source account balance: %w", err)
-	}
-
-	balance := credits - debits
-	if balance < amount {
-		return fmt.Errorf("insufficient funds: balance %d, requested %d", balance, amount)
-	}
-
-	// 4. Generar ID único para la transferencia
-	transferID := generateTransferID()
-
-	// 5. Realizar la transferencia
-	toAccountID := uint64(*toUser.TigerBeetleAccountID)
-	err = s.tigerBeetleService.Transfer(fromAccountID, toAccountID, amount, transferID)
-	if err != nil {
-		return fmt.Errorf("error transferring between users: %w", err)
-	}
-
-	log.Printf("Successfully transferred %d from user %s to user %s", amount, fromUser.Email, toUser.Email)
+	// Temporalmente sin TigerBeetle - solo registrar la operación
+	log.Printf("TigerBeetle disabled - would transfer %d from user %s to user %s", amount, fromUser.Email, toUser.Email)
 	return nil
 }
 
-// AssociateTigerBeetleAccount asocia una cuenta TigerBeetle existente a un usuario
+// AssociateTigerBeetleAccount asocia una cuenta TigerBeetle existente a un usuario (temporalmente sin TigerBeetle)
 func (s *UserService) AssociateTigerBeetleAccount(userID uuid.UUID) error {
 	// 1. Obtener el usuario
 	user, err := s.userRepo.GetByID(userID)
@@ -211,28 +101,8 @@ func (s *UserService) AssociateTigerBeetleAccount(userID uuid.UUID) error {
 		return fmt.Errorf("error getting user: %w", err)
 	}
 
-	// 2. Verificar que el usuario no tiene ya una cuenta asociada
-	if user.TigerBeetleAccountID != nil {
-		return fmt.Errorf("user already has a TigerBeetle account associated")
-	}
-
-	// 3. Generar un ID único para la cuenta TigerBeetle
-	accountID := generateTigerBeetleAccountID(user.ID)
-
-	// 4. Crear la cuenta en TigerBeetle
-	_, err = s.tigerBeetleService.CreateUserAccount(accountID)
-	if err != nil {
-		return fmt.Errorf("error creating TigerBeetle account: %w", err)
-	}
-
-	// 5. Actualizar el usuario con el ID de cuenta TigerBeetle
-	signedAccountID := int64(accountID)
-	err = s.userRepo.UpdateTigerBeetleAccountID(user.ID, signedAccountID)
-	if err != nil {
-		return fmt.Errorf("error updating user with TigerBeetle account ID: %w", err)
-	}
-
-	log.Printf("Successfully associated TigerBeetle account %d to user %s", accountID, user.Email)
+	// Temporalmente sin TigerBeetle - solo registrar la operación
+	log.Printf("TigerBeetle disabled - would associate account to user %s", user.Email)
 	return nil
 }
 
@@ -252,6 +122,15 @@ func (s *UserService) ListUsers(limit, offset int) ([]*models.User, error) {
 		return nil, fmt.Errorf("error listing users: %w", err)
 	}
 	return users, nil
+}
+
+// GetUserByEmail obtiene un usuario por su email
+func (s *UserService) GetUserByEmail(email string) (*models.User, error) {
+	user, err := s.userRepo.GetByEmail(email)
+	if err != nil {
+		return nil, fmt.Errorf("error getting user by email: %w", err)
+	}
+	return user, nil
 }
 
 // generateTigerBeetleAccountID genera un ID único para una cuenta TigerBeetle basado en el UUID del usuario

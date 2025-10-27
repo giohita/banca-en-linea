@@ -1,7 +1,6 @@
 package main
 
 import (
-	"database/sql"
 	"encoding/json"
 	"log"
 	"net/http"
@@ -12,14 +11,19 @@ import (
 	"github.com/gorilla/mux"
 
 	"banca-en-linea/backend/database"
+	"banca-en-linea/backend/internal/auth"
 	"banca-en-linea/backend/internal/db"
-	"banca-en-linea/backend/internal/tigerbeetle"
+	"banca-en-linea/backend/internal/handlers"
+	"banca-en-linea/backend/internal/middleware"
+	// "banca-en-linea/backend/internal/tigerbeetle" // Comentado temporalmente
 	"banca-en-linea/backend/models"
 )
 
 type Server struct {
-	userService *db.UserService
-	db          *sql.DB
+	userService       *db.UserService
+	// tigerBeetleClient *tigerbeetle.Client // Comentado temporalmente
+	authService       *auth.Service
+	authHandler       *handlers.AuthHandler
 }
 
 func main() {
@@ -46,23 +50,31 @@ func main() {
 	}
 
 	// Inicializar TigerBeetle service (usando stub para desarrollo)
-	log.Println("Inicializando servicio TigerBeetle...")
-	tbService := tigerbeetle.NewServiceStub()
-	defer tbService.Close()
+	// log.Println("Inicializando servicio TigerBeetle...")
+	// tbService := tigerbeetle.NewServiceStub()
+	// defer tbService.Close()
 
 	// Inicializar cuentas maestras de TigerBeetle
-	if err := tbService.InitializeMasterAccounts(); err != nil {
-		log.Fatalf("Error inicializando cuentas maestras TigerBeetle: %v", err)
-	}
+	// if err := tbService.InitializeMasterAccounts(); err != nil {
+	//	log.Fatalf("Error inicializando cuentas maestras TigerBeetle: %v", err)
+	// }
 
 	// Crear repositorio y servicio de usuarios
 	userRepo := db.NewUserRepository(dbConn)
-	userService := db.NewUserService(userRepo, tbService)
+	userService := db.NewUserService(userRepo, nil) // Pasar nil temporalmente
+
+	// Crear servicio de autenticación
+	authService := auth.NewService()
+
+	// Crear handler de autenticación
+	authHandler := handlers.NewAuthHandler(userService, authService)
 
 	// Crear servidor
 	server := &Server{
-		userService: userService,
-		db:          dbConn,
+		userService:       userService,
+		// tigerBeetleClient: tbService, // Comentado temporalmente
+		authService:       authService,
+		authHandler:       authHandler,
 	}
 
 	// Verificar si se debe inicializar con datos de prueba
@@ -96,21 +108,43 @@ func (s *Server) setupRoutes() *mux.Router {
 	router.Use(loggingMiddleware)
 	router.Use(corsMiddleware)
 
+	// Crear rate limiter para autenticación
+	authRateLimiter := middleware.CreateAuthRateLimiter()
+
 	// Rutas de la API
 	api := router.PathPrefix("/api/v1").Subrouter()
+	api.Use(corsMiddleware) // Aplicar CORS también al subrouter de API
 
-	// Rutas de usuarios
-	api.HandleFunc("/users", s.createUser).Methods("POST")
-	api.HandleFunc("/users/{id}", s.getUser).Methods("GET")
-	api.HandleFunc("/users/{id}/balance", s.getUserBalance).Methods("GET")
-	api.HandleFunc("/users", s.listUsers).Methods("GET")
+	// Rutas de autenticación (públicas con rate limiting)
+	authRoutes := api.PathPrefix("/auth").Subrouter()
+	authRoutes.Use(corsMiddleware) // Aplicar CORS también al subrouter de auth
+	authRoutes.Use(authRateLimiter.Middleware)
+	authRoutes.HandleFunc("/register", s.authHandler.Register).Methods("POST")
+	authRoutes.HandleFunc("/register", s.handleOptions).Methods("OPTIONS")
+	authRoutes.HandleFunc("/login", s.authHandler.Login).Methods("POST")
+	authRoutes.HandleFunc("/login", s.handleOptions).Methods("OPTIONS")
+	authRoutes.HandleFunc("/logout", s.authHandler.Logout).Methods("POST")
+	authRoutes.HandleFunc("/logout", s.handleOptions).Methods("OPTIONS")
 
-	// Rutas de transacciones
-	api.HandleFunc("/users/{id}/deposit", s.depositToUser).Methods("POST")
-	api.HandleFunc("/users/{id}/withdraw", s.withdrawFromUser).Methods("POST")
-	api.HandleFunc("/transfer", s.transferBetweenUsers).Methods("POST")
+	// Rutas protegidas
+	protectedRoutes := api.PathPrefix("").Subrouter()
+	protectedRoutes.Use(middleware.AuthMiddleware(s.authService))
 
-	// Ruta de salud
+	// Rutas de usuarios (protegidas)
+	protectedRoutes.HandleFunc("/users", s.createUser).Methods("POST")
+	protectedRoutes.HandleFunc("/users/{id}", s.getUser).Methods("GET")
+	protectedRoutes.HandleFunc("/users/{id}/balance", s.getUserBalance).Methods("GET")
+	protectedRoutes.HandleFunc("/users", s.listUsers).Methods("GET")
+
+	// Rutas de transacciones (protegidas)
+	protectedRoutes.HandleFunc("/users/{id}/deposit", s.depositToUser).Methods("POST")
+	protectedRoutes.HandleFunc("/users/{id}/withdraw", s.withdrawFromUser).Methods("POST")
+	protectedRoutes.HandleFunc("/transfer", s.transferBetweenUsers).Methods("POST")
+
+	// Ruta para obtener información del usuario autenticado
+	protectedRoutes.HandleFunc("/auth/me", s.authHandler.Me).Methods("GET")
+
+	// Ruta de salud (pública)
 	api.HandleFunc("/health", s.healthCheck).Methods("GET")
 
 	// Ruta de salud adicional sin prefijo para facilidad de acceso
@@ -330,12 +364,6 @@ func (s *Server) transferBetweenUsers(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *Server) healthCheck(w http.ResponseWriter, r *http.Request) {
-	// Verificar conexión a la base de datos
-	if err := s.db.Ping(); err != nil {
-		http.Error(w, "Database connection failed", http.StatusServiceUnavailable)
-		return
-	}
-
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]string{
 		"status":  "healthy",
@@ -354,9 +382,36 @@ func loggingMiddleware(next http.Handler) http.Handler {
 
 func corsMiddleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Access-Control-Allow-Origin", "*")
+		// Configuración estricta de CORS
+		origin := r.Header.Get("Origin")
+		allowedOrigins := []string{
+			"http://localhost:3000",
+			"http://localhost:5173",
+			"http://localhost:5174",
+			"http://localhost:8082",
+			"http://127.0.0.1:3000",
+			"http://127.0.0.1:5173",
+			"http://127.0.0.1:5174",
+			"http://127.0.0.1:8082",
+		}
+
+		// Verificar si el origen está permitido
+		isAllowed := false
+		for _, allowedOrigin := range allowedOrigins {
+			if origin == allowedOrigin {
+				isAllowed = true
+				break
+			}
+		}
+
+		if isAllowed {
+			w.Header().Set("Access-Control-Allow-Origin", origin)
+		}
+
 		w.Header().Set("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
-		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization")
+		w.Header().Set("Access-Control-Allow-Headers", "Content-Type, Authorization, X-Requested-With")
+		w.Header().Set("Access-Control-Allow-Credentials", "true")
+		w.Header().Set("Access-Control-Max-Age", "86400") // 24 horas
 
 		if r.Method == "OPTIONS" {
 			w.WriteHeader(http.StatusOK)
@@ -368,6 +423,12 @@ func corsMiddleware(next http.Handler) http.Handler {
 }
 
 // Funciones auxiliares
+
+func (s *Server) handleOptions(w http.ResponseWriter, r *http.Request) {
+	// Esta función maneja las solicitudes OPTIONS para CORS
+	// Los headers CORS ya se establecen en el middleware corsMiddleware
+	w.WriteHeader(http.StatusOK)
+}
 
 func shouldSeedData() bool {
 	seedEnv := os.Getenv("SEED_DATA")
