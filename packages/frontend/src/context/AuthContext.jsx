@@ -1,8 +1,6 @@
-import React, { createContext, useContext, useReducer, useEffect } from 'react';
+import React, { useReducer, useEffect } from 'react';
 import { authService } from '../services/api';
-
-// Estados de autenticación
-const AuthContext = createContext();
+import { AuthContext } from './AuthContextDefinition';
 
 // Tipos de acciones
 const AUTH_ACTIONS = {
@@ -197,15 +195,6 @@ export function AuthProvider({ children }) {
       {children}
     </AuthContext.Provider>
   );
-}
-
-// Hook personalizado para usar el contexto de autenticación
-export function useAuth() {
-  const context = useContext(AuthContext);
-  if (!context) {
-    throw new Error('useAuth debe ser usado dentro de un AuthProvider');
-  }
-  return context;
 }
 
 export default AuthContext;

@@ -93,7 +93,7 @@ const Register = () => {
     setError('');
 
     try {
-      const { confirmPassword, ...registerData } = formData;
+      const { confirmPassword: _confirmPassword, ...registerData } = formData;
       const response = await authService.register(registerData);
       login(response.data.user, response.data.token);
       navigate('/dashboard');
