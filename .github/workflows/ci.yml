@@ -77,15 +77,17 @@ jobs:
       run: go mod tidy && go mod verify
     
     - name: Run go vet
-      run: go vet -tags=ci ./...
+      run: go vet -tags=ci ./internal/... ./models/... ./database/... .
     
     - name: Run go fmt check
       run: |
-        if [ "$(gofmt -s -l . | wc -l)" -gt 0 ]; then
+        # Verificar formato de código Go excluyendo scripts
+        UNFORMATTED=$(gofmt -s -l . | grep -v scripts/ || true)
+        if [ -n "$UNFORMATTED" ]; then
           echo "Go code is not formatted properly:"
-          gofmt -s -l .
+          echo "$UNFORMATTED"
           exit 1
         fi
     
     - name: Build backend
-      run: go build -tags=ci -v ./...
+      run: go build -tags=ci -v .

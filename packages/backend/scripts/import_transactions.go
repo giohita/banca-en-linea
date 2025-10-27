@@ -78,7 +78,7 @@ func main() {
 		return
 	}
 
-	fmt.Printf("Datos cargados: %d usuarios, %d cuentas, %d transacciones\n", 
+	fmt.Printf("Datos cargados: %d usuarios, %d cuentas, %d transacciones\n",
 		len(jsonData.Users), len(jsonData.Accounts), len(jsonData.Transactions))
 
 	// Obtener usuarios existentes del API
@@ -162,7 +162,7 @@ func main() {
 		case "transfer":
 			fromUser, fromExists := accountToAPIUser[transaction.FromAccount]
 			toUser, toExists := accountToAPIUser[transaction.ToAccount]
-			
+
 			if fromExists && toExists {
 				if err := makeTransfer(fromUser.ID, toUser.ID, amountCents); err != nil {
 					fmt.Printf("Error en transferencia de %s a %s: %v\n", fromUser.Email, toUser.Email, err)

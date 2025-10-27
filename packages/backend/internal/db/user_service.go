@@ -12,14 +12,14 @@ import (
 
 // UserService maneja la lógica de negocio para usuarios
 type UserService struct {
-	userRepo           UserRepository
+	userRepo UserRepository
 	// tigerBeetleService *tigerbeetle.Service // Comentado temporalmente
 }
 
 // NewUserService crea una nueva instancia del servicio de usuarios
 func NewUserService(userRepo UserRepository, tbService interface{}) *UserService {
 	return &UserService{
-		userRepo:           userRepo,
+		userRepo: userRepo,
 		// tigerBeetleService: tbService, // Comentado temporalmente
 	}
 }

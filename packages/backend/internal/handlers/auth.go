@@ -144,10 +144,10 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 func (h *AuthHandler) Logout(w http.ResponseWriter, r *http.Request) {
 	// En una implementación JWT stateless, el logout se maneja en el cliente
 	// eliminando el token. Aquí simplemente confirmamos el logout.
-	
+
 	// En el futuro, se podría implementar una blacklist de tokens
 	// o usar refresh tokens para un control más granular.
-	
+
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(map[string]string{
 		"message": "Logged out successfully",

@@ -43,14 +43,14 @@ func (r *userRepository) Create(req *models.CreateUserRequest) (*models.User, er
 	}
 
 	user := &models.User{
-		ID:           uuid.New(),
-		Email:        req.Email,
-		PasswordHash: string(hashedPassword),
-		FirstName:    req.FirstName,
-		LastName:     req.LastName,
-		CreatedAt:    time.Now(),
-		UpdatedAt:    time.Now(),
-		IsActive:     true,
+		ID:            uuid.New(),
+		Email:         req.Email,
+		PasswordHash:  string(hashedPassword),
+		FirstName:     req.FirstName,
+		LastName:      req.LastName,
+		CreatedAt:     time.Now(),
+		UpdatedAt:     time.Now(),
+		IsActive:      true,
 		EmailVerified: false,
 	}
 

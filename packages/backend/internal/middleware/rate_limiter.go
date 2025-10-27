@@ -75,16 +75,16 @@ func getIP(r *http.Request) string {
 		}
 		return ip
 	}
-	
+
 	if ip := r.Header.Get("X-Real-IP"); ip != "" {
 		return ip
 	}
-	
+
 	// Usar RemoteAddr como fallback
 	if host, _, err := net.SplitHostPort(r.RemoteAddr); err == nil {
 		return host
 	}
-	
+
 	return r.RemoteAddr
 }
 
@@ -93,12 +93,12 @@ func (rl *RateLimiter) Middleware(next http.Handler) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		ip := getIP(r)
 		limiter := rl.getVisitor(ip)
-		
+
 		if !limiter.Allow() {
 			http.Error(w, "Rate limit exceeded. Please try again later.", http.StatusTooManyRequests)
 			return
 		}
-		
+
 		next.ServeHTTP(w, r)
 	})
 }
@@ -107,6 +107,6 @@ func (rl *RateLimiter) Middleware(next http.Handler) http.Handler {
 // Permite 5 requests por minuto por IP
 func CreateAuthRateLimiter() *RateLimiter {
 	rl := NewRateLimiter(rate.Every(12*time.Second), 5) // 5 requests per minute
-	rl.StartCleanup(10 * time.Minute) // Limpiar cada 10 minutos
+	rl.StartCleanup(10 * time.Minute)                   // Limpiar cada 10 minutos
 	return rl
 }

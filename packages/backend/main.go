@@ -20,10 +20,10 @@ import (
 )
 
 type Server struct {
-	userService       *db.UserService
+	userService *db.UserService
 	// tigerBeetleClient *tigerbeetle.Client // Comentado temporalmente
-	authService       *auth.Service
-	authHandler       *handlers.AuthHandler
+	authService *auth.Service
+	authHandler *handlers.AuthHandler
 }
 
 func main() {
@@ -71,10 +71,10 @@ func main() {
 
 	// Crear servidor
 	server := &Server{
-		userService:       userService,
+		userService: userService,
 		// tigerBeetleClient: tbService, // Comentado temporalmente
-		authService:       authService,
-		authHandler:       authHandler,
+		authService: authService,
+		authHandler: authHandler,
 	}
 
 	// Verificar si se debe inicializar con datos de prueba

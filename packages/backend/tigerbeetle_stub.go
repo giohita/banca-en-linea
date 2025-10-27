@@ -3,8 +3,25 @@
 package main
 
 import (
+	"log"
+
 	"go.uber.org/zap"
 )
+
+// Variables globales para el stub
+var (
+	tb     interface{} // Stub de TigerBeetle client
+	logger *zap.Logger
+)
+
+// init inicializa el logger para el stub
+func init() {
+	var err error
+	logger, err = zap.NewDevelopment()
+	if err != nil {
+		log.Fatalf("Error inicializando logger en stub: %v", err)
+	}
+}
 
 // initTigerBeetle inicializa un stub de TigerBeetle para builds de CI
 func initTigerBeetle() {

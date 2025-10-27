@@ -71,7 +71,7 @@ func OptionalAuthMiddleware(authService *auth.Service) func(http.Handler) http.H
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			authHeader := r.Header.Get("Authorization")
-			
+
 			// Si no hay header de autorización, continuar sin autenticación
 			if authHeader == "" {
 				next.ServeHTTP(w, r)

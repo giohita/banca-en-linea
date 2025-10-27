@@ -15,8 +15,8 @@ import (
 
 var (
 	ErrInvalidCredentials = errors.New("invalid credentials")
-	ErrTokenExpired      = errors.New("token expired")
-	ErrInvalidToken      = errors.New("invalid token")
+	ErrTokenExpired       = errors.New("token expired")
+	ErrInvalidToken       = errors.New("invalid token")
 )
 
 // Claims representa los claims del JWT
@@ -38,7 +38,7 @@ func NewService() *Service {
 		// En desarrollo, usar un secreto por defecto (NO hacer esto en producción)
 		secret = "your-super-secret-jwt-key-change-this-in-production"
 	}
-	
+
 	return &Service{
 		jwtSecret: []byte(secret),
 	}
@@ -62,7 +62,7 @@ func (s *Service) VerifyPassword(hashedPassword, password string) error {
 func (s *Service) GenerateToken(user *models.User) (string, error) {
 	// Token expira en 24 horas
 	expirationTime := time.Now().Add(24 * time.Hour)
-	
+
 	claims := &Claims{
 		UserID: user.ID,
 		Email:  user.Email,
@@ -87,7 +87,7 @@ func (s *Service) GenerateToken(user *models.User) (string, error) {
 // ValidateToken valida un JWT token y retorna los claims
 func (s *Service) ValidateToken(tokenString string) (*Claims, error) {
 	claims := &Claims{}
-	
+
 	token, err := jwt.ParseWithClaims(tokenString, claims, func(token *jwt.Token) (interface{}, error) {
 		// Verificar que el método de firma sea el esperado
 		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
