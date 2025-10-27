@@ -5,17 +5,13 @@ import (
     "encoding/json"
     "fmt"
     "log"
-    "net"
     "net/http"
     "os"
-    "strconv"
     "time"
 
     "github.com/google/uuid"
     "github.com/gorilla/mux"
     _ "github.com/lib/pq"
-    tigerbeetle "github.com/tigerbeetle/tigerbeetle-go"
-    "github.com/tigerbeetle/tigerbeetle-go/pkg/types"
     "go.uber.org/zap"
     "go.uber.org/zap/zapcore"
 )
@@ -57,10 +53,15 @@ type Transaction struct {
 	CreatedAt              time.Time `json:"created_at"`
 }
 
+// Interfaz para TigerBeetle que permite usar build tags
+type TigerBeetleClient interface {
+	Close() error
+}
+
 // Variables globales para las conexiones
 var (
 	db     *sql.DB
-	tb     tigerbeetle.Client
+	tb     TigerBeetleClient
 	logger *zap.Logger
 )
 
@@ -119,74 +120,8 @@ func initDatabase() {
 	
 	logger.Info("✅ Conectado exitosamente a PostgreSQL")
 	
-    // Configuración de TigerBeetle (simplificada)
-    tigerBeetleHost := getEnv("TIGERBEETLE_HOST", "tigerbeetle")
-    tigerBeetlePort := getEnv("TIGERBEETLE_PORT", "3002")
-    tigerBeetleAddrEnv := os.Getenv("TIGERBEETLE_ADDR")
-	
-	logger.Info("Iniciando conexión a TigerBeetle",
-		zap.String("host", tigerBeetleHost),
-		zap.String("port", tigerBeetlePort),
-	)
-	
-    // Resolver IP IPv4 para evitar "Invalid client cluster address" cuando se usa hostname
-    var tigerBeetleAddress string
-    if tigerBeetleAddrEnv != "" {
-        tigerBeetleAddress = tigerBeetleAddrEnv
-        logger.Info("Usando TIGERBEETLE_ADDR explícito", zap.String("address", tigerBeetleAddress))
-    } else {
-        // Resolver hostname a IPv4 para evitar problemas con el cliente TigerBeetle
-        ips, err := net.LookupIP(tigerBeetleHost)
-        if err != nil {
-            logger.Error("Error resolviendo hostname TigerBeetle", zap.Error(err), zap.String("host", tigerBeetleHost))
-            tigerBeetleAddress = tigerBeetleHost + ":" + tigerBeetlePort // fallback al hostname
-        } else {
-            // Buscar la primera dirección IPv4
-            var ipv4 net.IP
-            for _, ip := range ips {
-                if ip.To4() != nil {
-                    ipv4 = ip
-                    break
-                }
-            }
-            if ipv4 != nil {
-                tigerBeetleAddress = ipv4.String() + ":" + tigerBeetlePort
-                logger.Info("Resuelto hostname a IPv4", 
-                    zap.String("hostname", tigerBeetleHost),
-                    zap.String("ipv4", ipv4.String()),
-                    zap.String("address", tigerBeetleAddress))
-            } else {
-                logger.Warn("No se encontró IPv4 para hostname, usando hostname directo", zap.String("host", tigerBeetleHost))
-                tigerBeetleAddress = tigerBeetleHost + ":" + tigerBeetlePort
-            }
-        }
-    }
-	clusterID := types.ToUint128(0)
-	
-    // Configurar variables de entorno para TigerBeetle en Docker
-    os.Setenv("TIGERBEETLE_IO_MODE", "blocking")
-    os.Setenv("TIGERBEETLE_DISABLE_IO_URING", "1")
-    
-    logger.Info("Intentando crear cliente TigerBeetle",
-        zap.String("cluster_id", "0"),
-        zap.String("address", tigerBeetleAddress),
-        zap.String("io_mode", "blocking"),
-        zap.String("disable_io_uring", "1"),
-    )
-	
-	// Crear cliente TigerBeetle con configuración simplificada
-    tb, err = tigerbeetle.NewClient(clusterID, []string{tigerBeetleAddress})
-    if err != nil {
-        logger.Error("Error conectando a TigerBeetle", 
-            zap.Error(err),
-            zap.String("address", tigerBeetleAddress),
-            zap.String("cluster_id", "0"),
-        )
-        logger.Warn("TigerBeetle no estará disponible - puedes establecer TIGERBEETLE_ADDR=IP:PUERTO para forzar la dirección")
-        tb = nil
-    } else {
-        logger.Info("✅ Conectado exitosamente a TigerBeetle")
-    }
+	// Inicializar TigerBeetle (implementación específica por build tag)
+	initTigerBeetle()
 
 }
 
@@ -348,60 +283,7 @@ func getUserAccountsHandler(w http.ResponseWriter, r *http.Request) {
 	json.NewEncoder(w).Encode(accounts)
 }
 
-// Función auxiliar para obtener balance de TigerBeetle
-func getAccountBalance(accountID uint64) (int64, error) {
-	logger.Debug("Consultando balance en TigerBeetle", zap.Uint64("account_id", accountID))
-	
-	accounts, err := tb.LookupAccounts([]types.Uint128{types.ToUint128(accountID)})
-	if err != nil {
-		logger.Error("Error consultando cuenta en TigerBeetle", 
-			zap.Uint64("account_id", accountID),
-			zap.Error(err),
-		)
-		return 0, err
-	}
-	
-	if len(accounts) == 0 {
-		logger.Warn("Cuenta no encontrada en TigerBeetle", zap.Uint64("account_id", accountID))
-		return 0, fmt.Errorf("account not found")
-	}
-	
-	// Convertir Uint128 a uint64 usando String() y strconv
-	creditsStr := accounts[0].CreditsPosted.String()
-	debitsStr := accounts[0].DebitsPosted.String()
-	
-	creditsPosted, err := strconv.ParseUint(creditsStr, 10, 64)
-	if err != nil {
-		logger.Error("Error parseando créditos", 
-			zap.Uint64("account_id", accountID),
-			zap.String("credits_str", creditsStr),
-			zap.Error(err),
-		)
-		return 0, fmt.Errorf("error parsing credits: %v", err)
-	}
-	
-	debitsPosted, err := strconv.ParseUint(debitsStr, 10, 64)
-	if err != nil {
-		logger.Error("Error parseando débitos", 
-			zap.Uint64("account_id", accountID),
-			zap.String("debits_str", debitsStr),
-			zap.Error(err),
-		)
-		return 0, fmt.Errorf("error parsing debits: %v", err)
-	}
-	
-	// Calcular balance
-	balance := int64(creditsPosted) - int64(debitsPosted)
-	
-	logger.Debug("Balance calculado exitosamente", 
-		zap.Uint64("account_id", accountID),
-		zap.Int64("balance", balance),
-		zap.Uint64("credits", creditsPosted),
-		zap.Uint64("debits", debitsPosted),
-	)
-	
-	return balance, nil
-}
+
 
 // Configurar rutas
 func setupRoutes() *mux.Router {
